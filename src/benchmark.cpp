@@ -7,14 +7,6 @@ int main(int argc, char* argv[]) {
 
   Functions f;
   f.dump();
-
-  Vectors v;
-  v.dump();
-  v.fill_random();
-  v.dump();
-  Vectors v2;
-  v2.dump();
-  v.verify_equals("v_v2", &v2);
-  v2.copy_from(&v);
-  v2.dump();
+  f.verify();
+  f.benchmark(10e5, 10e5, 2);
 }

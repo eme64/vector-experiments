@@ -8,6 +8,8 @@
 #include <cstring>
 #include <random>
 
+#include "timer.hpp"
+
 class Vectors {
 private:
   std::random_device _rdev;
@@ -25,7 +27,7 @@ public:
   // Length of all data arrays
   uint64_t length;
 
-  Vectors(uint64_t l = 1024) : _rng(_rdev()), length(l) {
+  Vectors(uint64_t l = 8 * 1024) : _rng(_rdev()), length(l) {
     assert(l > 0 && l % 64 == 0 && "Vectors length must be divisible by 64");
     a = allocate();
     b = allocate();
@@ -96,6 +98,22 @@ public:
     }
   }
 
+  void fill_const(uint64_t val) {
+    fill_const(a, val);
+    fill_const(b, val);
+    fill_const(c, val);
+    fill_const(d, val);
+    fill_const(e, val);
+    fill_const(f, val);
+  }
+
+  void fill_const(char* arr, uint64_t val) {
+    std::uniform_int_distribution<uint64_t> dist(0, 0xFFFFFFFFFFFFFFFF);
+    for(uint64_t i = 0; i < length; i += 8) {
+      *((uint64_t*)(arr+i)) = val;
+    }
+  }
+
   void verify_equals(std::string name, const Vectors* other) {
     verify_equals(name + "_a", a, other->a);
     verify_equals(name + "_b", b, other->b);
@@ -129,19 +147,33 @@ public:
   typedef std::map<std::string, FunctionImpls> FunctionMap;
 
 private:
-  FunctionMap _map;
+  FunctionMap _map_init;
+  FunctionMap _map_impl;
 
-  void add_function(std::string func_name, std::string impl_name, Function f) {
-    if (_map.find(func_name) == _map.end()) {
-      _map[func_name] = FunctionImpls();
+  void add_init(std::string func_name, std::string init_name, Function f) {
+    if (_map_init.find(func_name) == _map_init.end()) {
+      _map_init[func_name] = FunctionImpls();
+      _map_impl[func_name] = FunctionImpls();
     }
-    _map[func_name][impl_name] = f;
+    _map_init[func_name][init_name] = f;
+  }
+
+  void add_impl(std::string func_name, std::string impl_name, Function f) {
+    if (_map_impl.find(func_name) == _map_impl.end()) {
+      _map_init[func_name] = FunctionImpls();
+      _map_impl[func_name] = FunctionImpls();
+    }
+    _map_impl[func_name][impl_name] = f;
   }
 
 public:
   Functions();
 
   void dump();
+
+  void verify();
+
+  void benchmark(int warmup, int iterations, int repetitions);
 };
 
 
