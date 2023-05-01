@@ -115,11 +115,18 @@ public:
   }
 
   void fill_str(char* arr) {
-    std::uniform_int_distribution<uint64_t> ldist(length/2, length);
+    std::uniform_int_distribution<uint64_t> ldist(length/2, length*1.1);
     uint64_t l = ldist(_rng);
     std::uniform_int_distribution<uint8_t> dist(1, 0xFF);
     for(uint64_t i = 0; i < length; i++) {
       arr[i] = (i < l) ? dist(_rng) : 0;
+    }
+  }
+
+  void fill_range_u32(char* arr, uint32_t lo, uint32_t hi) {
+    std::uniform_int_distribution<uint32_t> dist(lo, hi);
+    for(uint64_t i = 0; i < length; i += 4) {
+      *((uint32_t*)(arr+i)) = dist(_rng);
     }
   }
 
