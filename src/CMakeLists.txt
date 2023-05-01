@@ -13,6 +13,7 @@ set_target_properties(vector PROPERTIES
    CXX_STANDARD 11
    CXX_STANDARD_REQUIRED YES
    CXX_EXTENSIONS NO
+#   COMPILE_FLAGS "-Wall -march=native -mavx -mfma -O3"
    COMPILE_FLAGS "-Wall -march=native -mavx -mfma -O3 -fno-tree-loop-if-convert"
 #   COMPILE_FLAGS "-Wall -march=native -mavx -mfma -O3 -fno-if-conversion -fno-if-conversion2 -fno-tree-loop-if-convert"
 #   COMPILE_FLAGS "-Wall -march=native -mavx -mfma -O3 -fno-if-conversion -fno-if-conversion2 -fno-tree-loop-if-convert -fno-tree-loop-if-convert-stores -fno-inline"

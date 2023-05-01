@@ -8,6 +8,11 @@ void init_zero(Vectors* v) {
   v->fill_const(0);
 }
 
+void init_str(Vectors* v) {
+  v->fill_const(0);
+  v->fill_str(v->a);
+}
+
 void impl_identity_ref(Vectors* v) {
   const uint64_t limit = v->length;
   char* aa = v->a;
@@ -113,7 +118,45 @@ void impl_upper_char_impl_32_v2(Vectors* v) {
   }
 }
 
-Functions::Functions() {
+void impl_strlen_ref(Vectors* v) {
+  const uint64_t limit = v->length;
+  uint8_t* aa = (uint8_t*)v->a;
+  uint64_t* bb = (uint64_t*)v->b;
+  uint64_t i;
+  for (i = 0; i < limit; i++) {
+    if (aa[i] == 0) {
+      break; // found termination character
+    }
+  }
+  bb[0] = i; // i contains strlen, write to output
+}
+
+void impl_strlen_impl_32(Vectors* v) {
+  const uint64_t limit = v->length;
+  uint8_t* aa = (uint8_t*)v->a;
+  uint64_t* bb = (uint64_t*)v->b;
+  __m256i con_0      = _mm256_set1_epi8(0);
+  uint64_t i;
+  for (i = 0; i < limit; i += 32) {
+    __m256i val_a   = _mm256_loadu_si256((__m256i*) &aa[i]);
+    __m256i cmp     = _mm256_cmpeq_epi8(val_a, con_0); // c == 0
+    int is_zero     = _mm256_testz_si256(cmp, cmp); // is zero
+    if (!is_zero) {
+      // found termination character in vector
+      for (; i < limit; i++) {
+        if (aa[i] == 0) {
+          break;
+        }
+      }
+      bb[0] = i; // i contains strlen, write to output
+      return;
+    }
+  }
+  bb[0] = -1; // never found it, put in impossible value
+}
+
+Functions::Functions(std::string functions_prefix)
+    : _functions_prefix(functions_prefix) {
   // identity
   add_init("identity",   "random",      init_random);
   add_init("identity",   "zero",        init_zero);
@@ -131,6 +174,10 @@ Functions::Functions() {
   add_impl("upper_char", "ref",         impl_upper_char_ref);
   add_impl("upper_char", "impl_32",     impl_upper_char_impl_32);
   add_impl("upper_char", "impl_32_v2",  impl_upper_char_impl_32_v2);
+  // strlen
+  add_init("strlen",     "str",         init_str);
+  add_impl("strlen",     "ref",         impl_strlen_ref);
+  add_impl("strlen",     "impl_32",     impl_strlen_impl_32);
 }
 
 void Functions::dump() {
@@ -183,19 +230,19 @@ void Functions::benchmark(int warmup, int iterations, int repetitions) {
   for (auto it : _map_impl) {
     FunctionImpls &inits = _map_init[it.first];
     FunctionImpls &impls = it.second;
-    for (auto it3 : impls) {
-      Function &impl = it3.second;
+    for (int j = 0; j < repetitions; j++) {
       for (auto it2 : inits) {
-        Function &init = it3.second;
-        std::string name = "benchmark." + it.first + "." + it2.first + "." + it3.first;
+        Function &init = it2.second;
         // Initialize input:
         Vectors vector;
         init(&vector);
-        // Warmup
-        for (int i = 0; i < warmup; i++) {
-          impl(&vector);
-        }
-        for (int j = 0; j < repetitions; j++) {
+        for (auto it3 : impls) {
+          Function &impl = it3.second;
+          std::string name = "benchmark." + it.first + "." + it2.first + "." + it3.first;
+          // Warmup
+          for (int i = 0; i < warmup; i++) {
+            impl(&vector);
+          }
           t.start();
           for (int i = 0; i < iterations; i++) {
             impl(&vector);

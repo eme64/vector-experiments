@@ -114,6 +114,15 @@ public:
     }
   }
 
+  void fill_str(char* arr) {
+    std::uniform_int_distribution<uint64_t> ldist(length/2, length);
+    uint64_t l = ldist(_rng);
+    std::uniform_int_distribution<uint8_t> dist(1, 0xFF);
+    for(uint64_t i = 0; i < length; i++) {
+      arr[i] = (i < l) ? dist(_rng) : 0;
+    }
+  }
+
   void verify_equals(std::string name, const Vectors* other) {
     verify_equals(name + "_a", a, other->a);
     verify_equals(name + "_b", b, other->b);
@@ -149,8 +158,10 @@ public:
 private:
   FunctionMap _map_init;
   FunctionMap _map_impl;
+  std::string _functions_prefix;
 
   void add_init(std::string func_name, std::string init_name, Function f) {
+    if (func_name.rfind(_functions_prefix, 0) != 0) { return; }
     if (_map_init.find(func_name) == _map_init.end()) {
       _map_init[func_name] = FunctionImpls();
       _map_impl[func_name] = FunctionImpls();
@@ -159,6 +170,7 @@ private:
   }
 
   void add_impl(std::string func_name, std::string impl_name, Function f) {
+    if (func_name.rfind(_functions_prefix, 0) != 0) { return; }
     if (_map_impl.find(func_name) == _map_impl.end()) {
       _map_init[func_name] = FunctionImpls();
       _map_impl[func_name] = FunctionImpls();
@@ -167,7 +179,7 @@ private:
   }
 
 public:
-  Functions();
+  Functions(std::string functions_prefix);
 
   void dump();
 
