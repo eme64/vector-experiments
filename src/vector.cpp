@@ -60,6 +60,9 @@ void impl_add_char_ref(Vectors* v) {
   }
 }
 
+// -fno-tree-loop-if-convert
+// Prevents the if-conversion, with which it is as fast as impl_32_v2
+// or even a tiny bit faster.
 void impl_upper_char_ref(Vectors* v) {
   const uint64_t limit = v->length;
   uint8_t* aa = (uint8_t*)v->a;
@@ -78,32 +81,56 @@ void impl_upper_char_impl_32(Vectors* v) {
   char* aa = v->a;
   char* bb = v->b;
   __m256i con_m_32 = _mm256_set1_epi8(-32);
-  __m256i con_97   = _mm256_set1_epi8(97);
-  __m256i con_122  = _mm256_set1_epi8(122);
+  __m256i con_96   = _mm256_set1_epi8(96);
+  __m256i con_123  = _mm256_set1_epi8(123);
   for (uint64_t i = 0; i < limit; i+=32) {
     __m256i val_a   = _mm256_loadu_si256((__m256i*) &aa[i]);
     __m256i val_sub = _mm256_add_epi8(val_a, con_m_32);
-    _mm256_storeu_si256((__m256i*) &bb[i], val_sub);
+    __m256i cmp0 = _mm256_cmpgt_epi8(val_a, con_96); // c >= 97
+    __m256i cmp1 = _mm256_cmpgt_epi8(con_123, val_a);  // c <= 122
+    __m256i cmp  = _mm256_and_si256(cmp0, cmp1);
+    __m256i val_b = _mm256_blendv_epi8(val_a, val_sub, cmp);
+    _mm256_storeu_si256((__m256i*) &bb[i], val_b);
+  }
+}
+
+void impl_upper_char_impl_32_v2(Vectors* v) {
+  const uint64_t limit = v->length;
+  char* aa = v->a;
+  char* bb = v->b;
+  __m256i con_m_32   = _mm256_set1_epi8(-32);
+  __m256i con_m_97   = _mm256_set1_epi8(-97);
+  __m256i con_25     = _mm256_set1_epi8(25);
+  __m256i con_0      = _mm256_set1_epi8(0);
+  for (uint64_t i = 0; i < limit; i+=32) {
+    __m256i val_a   = _mm256_loadu_si256((__m256i*) &aa[i]);
+    __m256i val_sh  = _mm256_add_epi8(val_a, con_m_97); // sh = a[i] - 97
+    __m256i val_su  = _mm256_subs_epu8(val_sh, con_25); // su = sub_no_underflow(sh, 25)
+    __m256i cmp     = _mm256_cmpeq_epi8(val_su, con_0); // su == 0
+    __m256i val_sub = _mm256_add_epi8(val_a, con_m_32); // sh = a[i] - 32
+    __m256i val_b = _mm256_blendv_epi8(val_a, val_sub, cmp);
+    _mm256_storeu_si256((__m256i*) &bb[i], val_b);
   }
 }
 
 Functions::Functions() {
   // identity
-  add_init("identity",   "random",    init_random);
-  add_init("identity",   "zero",      init_zero);
-  add_impl("identity",   "ref",       impl_identity_ref);
-  add_impl("identity",   "impl_256",  impl_identity_impl_256);
+  add_init("identity",   "random",      init_random);
+  add_init("identity",   "zero",        init_zero);
+  add_impl("identity",   "ref",         impl_identity_ref);
+  add_impl("identity",   "impl_256",    impl_identity_impl_256);
   // add_long
-  add_init("add_long",   "random",    init_random);
-  add_impl("add_long",   "ref",       impl_add_long_ref);
-  add_impl("add_long",   "impl_4",    impl_add_long_impl_4);
+  add_init("add_long",   "random",      init_random);
+  add_impl("add_long",   "ref",         impl_add_long_ref);
+  add_impl("add_long",   "impl_4",      impl_add_long_impl_4);
   // add_char
-  add_init("add_char",   "random",    init_random);
-  add_impl("add_char",   "ref",       impl_add_char_ref);
+  add_init("add_char",   "random",      init_random);
+  add_impl("add_char",   "ref",         impl_add_char_ref);
   // upper_char
-  add_init("upper_char", "random",    init_random);
-  add_impl("upper_char", "ref",       impl_upper_char_ref);
-  add_impl("upper_char", "impl_32",   impl_upper_char_impl_32);
+  add_init("upper_char", "random",      init_random);
+  add_impl("upper_char", "ref",         impl_upper_char_ref);
+  add_impl("upper_char", "impl_32",     impl_upper_char_impl_32);
+  add_impl("upper_char", "impl_32_v2",  impl_upper_char_impl_32_v2);
 }
 
 void Functions::dump() {
